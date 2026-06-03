@@ -21,10 +21,15 @@ class StepperMotor{
     private:
         int _dirPin;
         int _stepPin;
-        bool _stepState;
+
+        bool _stepHigh;
         uint32_t _lastStepTime;
         uint32_t _stepInterval;
         float _velocity; // RPM
-        bool _clockwise;
+
+        bool _appliedDir;
+        bool _requestedDir;
+
+        static constexpr uint32_t STEP_PULSE_WIDTH_US = 2;
 };
 

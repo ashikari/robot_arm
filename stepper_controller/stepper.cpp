@@ -4,30 +4,57 @@
 StepperMotor::StepperMotor(int dirPin, int stepPin){
     _dirPin = dirPin;
     _stepPin = stepPin;
-    _stepState = false;
+    _stepHigh = false;
+
+    _requestedDir = false;
+    _appliedDir = false;
 
     // // TODO update stepInterval to depend upon the desired velocity
-    // _stepInterval = 500;
 
     _lastStepTime = micros();
 };
 void StepperMotor::setup(){
-    pinMode(STEP_PIN, OUTPUT);
-    pinMode(DIR_PIN, OUTPUT);
+    pinMode(_stepPin, OUTPUT);
+    pinMode(_dirPin, OUTPUT);
+
+    digitalWrite(_stepPin, LOW);
+    digitalWrite(_dirPin, LOW);
+
+    _requestedDir = false;
+    _appliedDir = false;
+
     setVelocity(0.0);
     setDirection(false);
 };
 
 void StepperMotor::update(){
     uint32_t currentTime = micros();
-    Serial.print("Update fn: ");
-    Serial.println(currentTime);
-    if (_velocity > 0 and (currentTime - _lastStepTime) > _stepInterval){
-        Serial.println("Inside");
-        digitalWrite(_stepPin, !_stepState);
+
+    // The non-Leading Edge Code
+    if (_stepHigh){
+        if ((currentTime - _lastStepTime) >= STEP_PULSE_WIDTH_US){
+            digitalWriteFast(_stepPin, LOW);
+            _stepHigh = false;
+
+            if (_requestedDir != _appliedDir){
+                digitalWriteFast(_dirPin, _requestedDir);
+                _appliedDir = _requestedDir;
+            }
+        }
+        return;
+    }
+    if (_requestedDir != _appliedDir){
+        digitalWriteFast(_dirPin, _requestedDir);
+        _appliedDir = _requestedDir;
+        return;
+    }
+
+    // leading edge code
+    if (_velocity > 0 and (currentTime - _lastStepTime) >= _stepInterval){
+        digitalWriteFast(_stepPin, HIGH);
 
         // update state variables
-        _stepState = !_stepState;
+        _stepHigh = true;
         _lastStepTime = currentTime;
 
         // TODO add counter update
@@ -40,7 +67,6 @@ void StepperMotor::setVelocity(float velocity){
     _stepInterval = velocity;
 };
 
-void StepperMotor::setDirection(bool clockwise){
-    _clockwise = clockwise;
-    digitalWrite(_dirPin, _clockwise);
+void StepperMotor::setDirection(bool requestedDir){
+    _requestedDir = requestedDir;
 };
