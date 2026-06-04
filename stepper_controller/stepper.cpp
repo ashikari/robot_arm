@@ -1,9 +1,13 @@
 #include "stepper.h"
 #include <string.h>
 
-StepperMotor::StepperMotor(int dirPin, int stepPin){
+StepperMotor::StepperMotor(int dirPin, int stepPin, int m1Pin, int m2Pin, int m3Pin){
     _dirPin = dirPin;
     _stepPin = stepPin;
+    _m1Pin = m1Pin;
+    _m2Pin = m2Pin;
+    _m3Pin = m3Pin;
+
     _stepHigh = false;
 
     _requestedDir = false;
@@ -17,8 +21,16 @@ void StepperMotor::setup(){
     pinMode(_stepPin, OUTPUT);
     pinMode(_dirPin, OUTPUT);
 
+    pinMode(_m1Pin, OUTPUT);
+    pinMode(_m2Pin, OUTPUT);
+    pinMode(_m3Pin, OUTPUT);
+
     digitalWrite(_stepPin, LOW);
     digitalWrite(_dirPin, LOW);
+
+    digitalWrite(_m1Pin, LOW);
+    digitalWrite(_m2Pin, LOW);
+    digitalWrite(_m3Pin, LOW);
 
     _requestedDir = false;
     _appliedDir = false;
@@ -63,8 +75,9 @@ void StepperMotor::update(){
 };
 
 void StepperMotor::setVelocity(float velocity){
+
     _velocity = velocity;
-    _stepInterval = velocity;
+    _stepInterval = int(1 / (200 * velocity) * 1000000);
 };
 
 void StepperMotor::setDirection(bool requestedDir){

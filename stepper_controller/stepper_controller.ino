@@ -3,7 +3,7 @@
 
 IntervalTimer timer;
 
-StepperMotor m1(DIR_PIN, STEP_PIN);
+StepperMotor m1(DIR_PIN, STEP_PIN, M1_PIN, M2_PIN, M3_PIN);
 
 void stepperInteruptServiceRoutine(){
   m1.update();
@@ -11,9 +11,9 @@ void stepperInteruptServiceRoutine(){
 
 void setup() {
   m1.setup();
-  m1.setVelocity(80);
+  m1.setVelocity(1);
 
-  timer.begin(stepperInteruptServiceRoutine, 10);
+  timer.begin(stepperInteruptServiceRoutine, 30);
 }
 
 void loop() {
