@@ -1,13 +1,13 @@
 #include "stepper.h"
 #include <string.h>
 
-StepperMotor::StepperMotor(int dirPin, int stepPin, int m1Pin, int m2Pin, int m3Pin){
+StepperMotor::StepperMotor(int dirPin, int stepPin, int ms1Pin, int ms2Pin, int ms3Pin){
     // Store pin assignments
     _dirPin = dirPin;
     _stepPin = stepPin;
-    _m1Pin = m1Pin;
-    _m2Pin = m2Pin;
-    _m3Pin = m3Pin;
+    _ms1Pin = ms1Pin;
+    _ms2Pin = ms2Pin;
+    _ms3Pin = ms3Pin;
 
     // Initialize pulse-tracking state
     _stepHigh = false;
@@ -23,20 +23,21 @@ void StepperMotor::setup(){
     // Configure all driver control lines as outputs
     pinMode(_stepPin, OUTPUT);
     pinMode(_dirPin, OUTPUT);
-    pinMode(_m1Pin, OUTPUT);
-    pinMode(_m2Pin, OUTPUT);
-    pinMode(_m3Pin, OUTPUT);
+    pinMode(_ms1Pin, OUTPUT);
+    pinMode(_ms2Pin, OUTPUT);
+    pinMode(_ms3Pin, OUTPUT);
 
-    // Drive all pins to a known idle state (full-step mode, motor stopped)
+    // Drive all pins to a known idle state (motor stopped)
     digitalWrite(_stepPin, LOW);
     digitalWrite(_dirPin, LOW);
-    digitalWrite(_m1Pin, LOW);
-    digitalWrite(_m2Pin, LOW);
-    digitalWrite(_m3Pin, LOW);
 
     // Sync software direction state to the hardware idle state
     _requestedDir = false;
     _appliedDir = false;
+
+    // Default to full-step mode; applies the correct MS pin states and
+    // initialises _stepsPerRotation before the first setVelocity() call
+    setMicrostepMode(MicrostepMode::FULL);
 
     setVelocity(0.0);
     setDirection(false);
@@ -94,10 +95,27 @@ void StepperMotor::setVelocity(float velocity){
     // together, so the ISR never sees a new velocity paired with a stale interval.
     noInterrupts();
     _velocity = velocity;
-    // Convert rev/s → microseconds per step.
-    // At 200 full steps/rev: interval (µs) = 1,000,000 / (200 × velocity)
-    _stepInterval = int(1 / (200 * velocity) * 1000000);
+    // Convert rev/s → microseconds per step using the active microstep resolution.
+    // interval (µs) = 1,000,000 / (stepsPerRotation × velocity)
+    _stepInterval = int(1 / (_stepsPerRotation * velocity) * 1000000);
     interrupts();
+};
+
+void StepperMotor::setMicrostepMode(MicrostepMode mode){
+    const MicrostepConfig& config = MICROSTEP_TABLE[static_cast<int>(mode)];
+
+    // Atomically update the software state so the ISR never reads a stale
+    // _stepsPerRotation. Safe to call at runtime while the motor is running.
+    noInterrupts();
+    _microstepMode = mode;
+    _stepsPerRotation = config.stepsPerRotation;
+    interrupts();
+
+    // MS pin writes are outside the critical section — update() does not read
+    // the MS pins, so there is no ISR-visible inconsistency window here.
+    digitalWriteFast(_ms1Pin, config.ms1);
+    digitalWriteFast(_ms2Pin, config.ms2);
+    digitalWriteFast(_ms3Pin, config.ms3);
 };
 
 void StepperMotor::setDirection(bool requestedDir){
