@@ -11,7 +11,7 @@ void stepperInteruptServiceRoutine(){
 
 void setup() {
   m1.setup();
-  m1.setVelocity(4.5);
+  m1.setVelocity(2);
 
   timer.begin(stepperInteruptServiceRoutine, 30);
 }
